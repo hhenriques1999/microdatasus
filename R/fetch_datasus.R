@@ -944,7 +944,50 @@ fetch_datasus <- function(year_start, month_start, year_end, month_end, uf = "al
       paste0(atual_url,"PA", as.vector(sapply(lista_uf, paste0, valid_dates[valid_dates %in% avail_atual],".dbc")))
     }
     files_list <- c(files_list_1, files_list_2)
-  } else if(information_system == "SIA-PS"){
+  }else if(information_system == "SIA-BI"){
+    # Available dates
+    atual_url <- "ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados/"
+    antigo_url <- "ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/199407_200712/Dados/"
+
+    # Function to process FTP directory listing
+    process_directory <- function(url) {
+        tmp <- RCurl::getURL(url = url, ftp.use.epsv = TRUE, dirlistonly = TRUE)
+        tmp <- unlist(strsplit(x = tmp, split = "\n"))
+        tmp <- tmp[grep("^BI", tmp)]
+        tmp <- tmp[substr(x = tmp, start = 3, stop = 4) %in% lista_uf]
+        avail_dates <- unique(substr(x = tmp, start = 5, stop = 9))
+        avail_dates <- gsub(pattern = "\\.", replacement = "", x = avail_dates)
+        return(avail_dates)
+    }
+
+    # Process current and old URLs
+    avail_atual <- process_directory(atual_url)
+    avail_antigo <- process_directory(antigo_url)
+
+    # Check if required dates are available
+    if(!all(dates %in% c(avail_atual, avail_antigo))){
+      message(paste0("The following dates are not availabe at DataSUS (yymm): ", paste0(dates[!dates %in% c(avail_atual, avail_antigo)], collapse = ", "), ". Only the available dates will be downloaded."))
+    }
+    valid_dates <- dates[dates %in% c(avail_atual, avail_antigo)]
+
+    # Message about old data
+    if(any(valid_dates %in% avail_antigo)){
+      message(paste0("The following dates (yymm) are from old folders and may contain incompatible codes (including old ICD codes): ", paste0(valid_dates[valid_dates %in% avail_antigo], collapse = ", "), "."))
+    }
+
+    # File list
+    files_list_1 <- if(any(valid_dates %in% avail_antigo)){
+      paste0(antigo_url,"BI", as.vector(sapply(lista_uf, paste0, valid_dates[valid_dates %in% avail_antigo],".dbc")))
+    }
+    files_list_2 <- if(any(valid_dates %in% avail_atual)){
+      paste0(atual_url,"BI", as.vector(sapply(lista_uf, paste0, valid_dates[valid_dates %in% avail_atual],".dbc")))
+    }
+    files_list <- c(files_list_1, files_list_2)
+
+    # Remove intermediate objects to free up memory
+    rm(atual_url, antigo_url, tmp, avail_atual, avail_antigo)
+  } 
+  else if(information_system == "SIA-PS"){
     # Available dates
     atual_url <- "ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/200801_/Dados/"
     antigo_url <- "ftp://ftp.datasus.gov.br/dissemin/publicos/SIASUS/199407_200712/Dados/"
